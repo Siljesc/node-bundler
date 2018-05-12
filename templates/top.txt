@@ -1,0 +1,61 @@
+const __path = require('path');
+
+const __scopes = {};
+const __scopesCache = {};
+let AppExport = {};
+
+const fixPath = function(filePath, requirePath) {
+
+    if (requirePath.startsWith('../')) filePath = __path.normalize(filePath);
+    if (!requirePath.endsWith('.js') && !requirePath.endsWith('.json')) requirePath += '.js'
+
+    let fixedPath = __path.join(__path.parse(filePath).dir, requirePath);
+
+    const length = __path.resolve(process.cwd()).length
+    fixedPath = (('./' + fixedPath.slice(length + 1)).replace(/\\/g, '/'));
+
+    return fixedPath;
+}
+
+const __scopeRequire = function(mod, filePath) {
+
+    const Module = mod.constructor
+
+    const _require = (requirePath) => {
+	
+        if (!requirePath.startsWith('./') && !requirePath.startsWith('../')) return mod.require(requirePath);
+
+        const fixedPath = fixPath(filePath, requirePath);
+
+        if (__scopesCache[fixedPath]) return __scopesCache[fixedPath];
+
+        const requiredFile = __scope(fixedPath, __scopes[fixedPath]());
+
+        if (!requiredFile) throw new Error("Couldn't find module: " + fixedPath)
+
+        __scopesCache[fixedPath] = requiredFile;
+        return requiredFile;
+    }
+
+    //_require.cache = Module._cache;
+
+    return _require;
+}
+
+const __scope = function(_path, fun) {
+
+    const _mod = module;
+    const _module = new _mod.constructor();
+
+    _path = __path.resolve(_path);
+    const _filename = _path;
+    const _dirname = __path.dirname(_filename);
+
+    _module.paths = module.paths;
+
+    const _require = __scopeRequire(_mod, _path);
+	
+    const result = fun.call(_module.exports, _module.exports, _require, _module, _dirname, _filename);
+
+    return _module.exports;
+}

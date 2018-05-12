@@ -1,144 +1,132 @@
 #!/usr/bin/env node
 
-'use strict';
-const program = require('commander');
-
-const __path = require('path');
-const __fs = require('fs');
-const __util = require('util');
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
 const uid = require('uuid');
+const vm = require('vm');
+const Module = require('module');
 
 let AppExport = {};
 
-const __writeFileP = __util.promisify(__fs.writeFile);
-const __readFileP = __util.promisify(__fs.readFile);
+class Bundler {
 
-const writeJSFile = async function(path, file){
-	try {
-		await __writeFileP(path, file, 'utf-8');
-		return console.log(`Saved ${path}`); 
-	} catch (err){
-		console.log(err)
+	constructor(options){
+		this._scopes = {};
+		this._scopesCache = {};
+		this._scopesRaw = {};
+		this.inputFile = options.inputFile;
+	}
+
+	static scopeFileJS(string, main){
+		return `${ string }\n\t${main ? `\n\t AppExport = module;` : ''}`;
+	}
+
+	static scopeFileJSON(string){
+		return `module.exports = ${ string }`;
+	}
+
+	static generateScopeFile(scope, string){
+		let file = ''
+
+		if(scope.endsWith('.json')) file = Bundler.scopeFileJSON(string);
+		else file = Bundler.scopeFileJS(string, scope === './app.js');
+
+		return Module.wrap(file);
+	}
+
+	static fixPath(filePath, requirePath){
+
+		if(requirePath.startsWith('../')) filePath = path.normalize(filePath);
+		if(!requirePath.endsWith('.js') && !requirePath.endsWith('.json')) requirePath += '.js'
+
+		let fixedPath = path.join(path.parse(filePath).dir, requirePath);
+
+		const length = path.resolve(process.cwd()).length
+		fixedPath = (('./'+fixedPath.slice(length+1)).replace(/\\/g, '/'));
+
+		return fixedPath;
+	}
+
+	__scopeRequire(mod, filePath){
+
+		const Module = mod.constructor
+
+		const _require = (requirePath) => {
+
+			// File is requiring module from node_modules
+			if(!requirePath.startsWith('./') && !requirePath.startsWith('../')) return mod.require(requirePath);
+			
+			// File Path relative to root dir
+			const fixedPath = Bundler.fixPath(filePath, requirePath);
+			
+			// Avoid re-running module 
+			if(this._scopesCache[fixedPath]) return this._scopesCache[fixedPath];
+			
+			const file = String(fs.readFileSync(fixedPath, 'utf-8'));
+
+			const wrappedFile = Bundler.generateScopeFile(fixedPath, file);
+			
+			this._scopes[fixedPath] = wrappedFile;
+
+			// We need to write it to file later
+			this._scopesRaw[fixedPath] = file;
+			
+			const compiledWrapper = vm.runInThisContext(wrappedFile);
+			const requiredFile = this.__scope(fixedPath, compiledWrapper);
+
+			this._scopesCache[fixedPath] = requiredFile;
+
+			return requiredFile;
+		}
+
+		_require.cache = Module._cache;
+
+		return _require;
+	}
+
+	__scope(_path, fun){
+
+		const _mod = module;
+		const _module = new _mod.constructor();
+
+		_path = path.resolve(_path);
+		const _filename = _path;
+		const _dirname = path.dirname(_filename);
+
+		_module.paths = module.paths;
+
+		const _require = this.__scopeRequire(_mod, _path);
+
+		let result = fun.call(_module.exports, _module.exports, _require, _module, _dirname, _filename); 
+
+		return _module.exports;
+	}
+
+	concatScopes(){
+		return Object.keys(this._scopesRaw).map((scope) => {
+			return (`__scopes["${scope}"] = function(){ return ${Module.wrap(this._scopesRaw[scope])} }`)
+		}).join(';\n\n');;
+	};
+
+	getBundle(pre, after){
+		return pre + 
+			'\n\n' + 
+			this.init() + 
+			'\n\n' + 
+			`__scope('init', (exports, require, module) => {
+				require('./${this.inputFile}')
+			});`+
+			after;
+	}
+
+	init(){
+		this.__scope('init', (exports, require, module) => {
+			require('./'+this.inputFile)
+		});
+
+		return this.concatScopes();
 	}
 }
 
-const __scopeFile = function(__scope, string){	
-	if(__scope.endsWith('.json')) return `__scope('${__scope}', function(){\n\tmodule.exports = ${string}\n})`
-	let file = `__scope('${__scope}', function(require, module, exports){\n\t${string}\n	module = Object.keys(module).length ? module : {exports};`;
-	if(__scope = `./app.js`) file += `\n AppExport = module`;
-	file += `\nreturn module\n})`;
-	return file;
-}
-
-const __scopes = {};
-const __scopesCache = {};
-const __scopestrings = {};
-const __scopeOrder = [];
-
-const __scopeRequire = function(oPath, path){
-	
-	const parsedPath = __path.parse(oPath);
-	
-	if(parsedPath.name.length === 13) oPath = './' + parsedPath.name;
-	//if(__scopes[oPath]) return eval(__scopes[oPath]);
-	
-	if((!path.startsWith('./') && !path.startsWith('../'))) {
-		return require(path);
-	}
-	
-	if(path.startsWith('../')) oPath = __path.normalize(oPath);
-	if(!path.endsWith('.js') && !path.endsWith('.json')) path += '.js'
-	
-	let filePath = __path.join(__path.parse(oPath).dir, path);
-	
-	const length = __path.resolve(process.cwd()).length
-	filePath = (('./'+filePath.slice(length+1)).replace(/\\/g, '/'));
-	
-	if(__scopesCache[filePath]) return __scopesCache[filePath];
-	
-	let file = String(__fs.readFileSync(filePath));
-	
-	__scopes[filePath] = __scopeFile(filePath, file);
-	__scopestrings[filePath] = file;
-	__scopeOrder.push(filePath);
-	
-	const requiredFile = eval(__scopeFile(filePath, file));
-	__scopesCache[filePath] = requiredFile;
-	return requiredFile;
-}
-
-const __scope = function(path, fun){
-	path = __path.resolve(path);
-
-	const _resolved = fun(__scopeRequire.bind(null, path), {}, {})
-	if(_resolved) return _resolved.exports
-}
-
-const print__scopes = function(){
-	return __scopeOrder.reverse().map((___scope) => `__scopes["${___scope}"] = function(){ return ${__scopeFile(___scope, __scopestrings[___scope])} }`).join(';\n\n');
-}
-
-const jsFile = `const __path = require('path');
-const __scopes = {};
-const __scopesCache = {};
-let AppExport = {};
-
-const __scopeRequire = function(oPath, path){
-	
-	if(!path.startsWith('./') && !path.startsWith('../')) {
-		return require(path);
-	}
-	
-	if(path.startsWith('../')) oPath = __path.normalize(oPath);
-	if(!path.endsWith('.js') && !path.endsWith('.json')) path += '.js'
-	
-	let filePath = __path.join(__path.parse(oPath).dir, path);
-	
-	const length = __path.resolve(process.cwd()).length
-	filePath = (('./'+filePath).replace(/\\\\/g, '/'));
-	
-	if(__scopesCache[filePath]) return __scopesCache[filePath];
-	
-	const requiredFile = __scopes[filePath] && __scopes[filePath]();
-	
-	if(!requiredFile) throw new Error("Couldn't find module: "+filePath)
-	
-	__scopesCache[filePath] = requiredFile;
-	return requiredFile;
-}
-
-const __scope = function(path, fun){
-	const _resolved = fun(__scopeRequire.bind(null, path), {}, {})
-	if(_resolved) return _resolved.exports
-}
-
-${print__scopes()}
-
-__scope('init', function(require, module){
-	require('./app.js')
-})
-
-module.exports = AppExport.exports;
-`;
-
-const init = async (input, output) => {
-
-	__scope('init', function(require, module){
-		require(`./${input}`);
-	})
-	
-	await writeJSFile(__path.resolve(process.cwd(), output), jsFile);
-	
-	process.exit(0)
-};
-
-program
-	.version('0.0.1')
-	.usage('<file> [options]')
-	.option('-o, --output <file>', 'output file')
-
-program.parse(process.argv);
-
-if (program.args.length === 0) program.help()
-	
-init(program.args[0], program.output)
+module.exports = Bundler;

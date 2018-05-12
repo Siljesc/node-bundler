@@ -4,14 +4,15 @@
   "description": "",
   "main": "bundler.js",
   "dependencies": {
-    "commander": "^2.15.1"
+    "commander": "^2.15.1",
+    "js-beautify": "^1.7.5"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "bundle": "bundler.js"
+    "bundle": "index.js"
   },
   "author": "",
   "license": "ISC"

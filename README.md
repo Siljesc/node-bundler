@@ -1,4 +1,4 @@
-# bundle-js
+# Node Bundler
 
 Bundle Node inter-dependent files in a single file
 

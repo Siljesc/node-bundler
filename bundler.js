@@ -13,12 +13,13 @@ let AppExport = {};
 const topFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'top.txt'), 'utf8');
 const botFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'bottom.txt'), 'utf8');
 
+const REGEX_REQ_G = /require\(['|"](.*)['|"]\)/g;
+const REGEX_REQ = /require\(['|"](.*)['|"]\)/;
+
 class Bundler {
 
 	constructor(options){
 		this._scopes = {};
-		this._scopesCache = {};
-		this._scopesRaw = {};
 		this.inputFile = options.inputFile;
 		this.beautify = options.beautify;
 		this.debug = options.verbose ? (...args) => console.log(...args) : () => null;
@@ -43,77 +44,54 @@ class Bundler {
 
 	static fixPath(filePath, requirePath){
 
-		if(requirePath.startsWith('../')) filePath = path.normalize(filePath);
+		filePath = path.normalize(filePath);
 		if(!requirePath.endsWith('.js') && !requirePath.endsWith('.json')) requirePath += '.js'
 
 		let fixedPath = path.join(path.parse(filePath).dir, requirePath);
 
-		const length = path.resolve(process.cwd()).length
-		fixedPath = (('./'+fixedPath.slice(length+1)).replace(/\\/g, '/'));
+		fixedPath = (('./'+fixedPath).replace(/\\/g, '/'));
 
 		return fixedPath;
 	}
 
-	__scopeRequire(mod, filePath){
+	static findRequires(file){
 
-		const Module = mod.constructor
-
-		const _require = (requirePath) => {
-
-			// File is requiring module from node_modules
-			if(!requirePath.startsWith('./') && !requirePath.startsWith('../')) return mod.require(requirePath);
-			
-			// File Path relative to root dir
-			const fixedPath = Bundler.fixPath(filePath, requirePath);
-			
-			// Avoid re-running module 
-			if(this._scopesCache[fixedPath]) return this._scopesCache[fixedPath];
-			
-			this.debug(`Reading ${fixedPath} required by ${filePath}`);
-			const file = String(fs.readFileSync(fixedPath, 'utf-8'));
-
-			const wrappedFile = Bundler.generateScopeFile(fixedPath, file);
-			
-			this._scopes[fixedPath] = wrappedFile;
-
-			// We need to write it to file later
-			this._scopesRaw[fixedPath] = file;
-			
-			const compiledWrapper = vm.runInThisContext(wrappedFile);
-			const requiredFile = this.__scope(fixedPath, compiledWrapper);
-
-			this._scopesCache[fixedPath] = requiredFile;
-
-			return requiredFile;
-		}
-
-		_require.cache = Module._cache;
-
-		return _require;
+		const requires = file.match(REGEX_REQ_G)
+		return !requires ? [] : file.match(REGEX_REQ_G).map((string) => string.match(REGEX_REQ)[1]);
 	}
 
-	__scope(_path, fun){
+	processFile(filePath, init){
 
-		const _mod = module;
-		const _module = new _mod.constructor();
+		if(this._scopes[filePath]) return;
 
-		_path = path.resolve(_path);
-		const _filename = _path;
-		const _dirname = path.dirname(_filename);
+		this.debug(`Processing ${filePath}`);
 
-		_module.paths = module.paths;
+		const file = String(fs.readFileSync(filePath, 'utf-8'));
+		const fileRequires = Bundler.findRequires(file);
 
-		const _require = this.__scopeRequire(_mod, _path);
+		if(!filePath.startsWith('./')) filePath = './'+filePath;
 
-		let result = fun.call(_module.exports, _module.exports, _require, _module, _dirname, _filename); 
+		this._scopes[filePath] = file;
 
-		return _module.exports;
+		fileRequires.forEach((requirePath) => {
+
+			// File is requiring module from node_modules
+			if(!requirePath.startsWith('./') && !requirePath.startsWith('../')) return;
+
+			// File Path relative to root dir
+			const fixedPath = Bundler.fixPath(filePath, requirePath);
+
+			this.processFile(fixedPath);
+		})
+
+		return;
+
 	}
 
 	concatScopes(){
-		return Object.keys(this._scopesRaw).map((scope) => {
+		return Object.entries(this._scopes).map(([scope, string]) => {
 			this.debug(`Adding ${scope} to bundle`);
-			return (`__scopes["${scope}"] = function(){ return ${Bundler.generateScopeFile(scope, this._scopesRaw[scope])} }`)
+			return (`__scopes["${scope}"] = function(){ return ${Bundler.generateScopeFile(scope, string)} }`)
 		}).join(';\n\n');;
 	};
 
@@ -132,9 +110,7 @@ class Bundler {
 
 		console.log(`Processing Files...`)
 
-		this.__scope('init', (exports, require, module) => {
-			require('./'+this.inputFile)
-		});
+		this.processFile(this.inputFile);
 
 		console.log(`Bundling Files...`)
 

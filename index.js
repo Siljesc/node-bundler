@@ -11,22 +11,23 @@ const path = require('path');
 const writeFileP = util.promisify(fs.writeFile);
 const readFileP = util.promisify(fs.readFile);
 
-const topFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'top.txt'), 'utf8');
-const botFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'bottom.txt'), 'utf8');
-
 program
 	.version('0.0.1')
 	.usage('<file> [options]')
-	.option('-o, --output <file>', 'output file')
+    .option('-o, --output <file>', 'output file')
+    .option('-v, --verbose', 'enable verbose')
+    .option('-b, --beautify', 'beautify output')
 
 program.parse(process.argv);
 
 if (program.args.length === 0) program.help()
 
 const b = new Bundler({ 
-    inputFile: program.args[0]
+    inputFile: program.args[0],
+    verbose: program.verbose,
+    beautify: program.beautify
 });
 
-fs.writeFileSync(program.output, beautify(b.getBundle(topFile, botFile), {indent_size: 4}), 'utf-8')
+b.saveFile(program.output);
 
 process.exit(0)

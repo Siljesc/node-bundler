@@ -6,8 +6,12 @@ const util = require('util');
 const uid = require('uuid');
 const vm = require('vm');
 const Module = require('module');
+const beautify = require('js-beautify').js_beautify;
 
 let AppExport = {};
+
+const topFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'top.txt'), 'utf8');
+const botFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'bottom.txt'), 'utf8');
 
 class Bundler {
 
@@ -16,6 +20,8 @@ class Bundler {
 		this._scopesCache = {};
 		this._scopesRaw = {};
 		this.inputFile = options.inputFile;
+		this.beautify = options.beautify;
+		this.debug = options.verbose ? (...args) => console.log(...args) : () => null;
 	}
 
 	static scopeFileJS(string, main){
@@ -63,6 +69,7 @@ class Bundler {
 			// Avoid re-running module 
 			if(this._scopesCache[fixedPath]) return this._scopesCache[fixedPath];
 			
+			this.debug(`Reading ${fixedPath} required by ${filePath}`);
 			const file = String(fs.readFileSync(fixedPath, 'utf-8'));
 
 			const wrappedFile = Bundler.generateScopeFile(fixedPath, file);
@@ -105,7 +112,8 @@ class Bundler {
 
 	concatScopes(){
 		return Object.keys(this._scopesRaw).map((scope) => {
-			return (`__scopes["${scope}"] = function(){ return ${generateScopeFile(scope, this._scopesRaw[scope])} }`)
+			this.debug(`Adding ${scope} to bundle`);
+			return (`__scopes["${scope}"] = function(){ return ${Bundler.generateScopeFile(scope, this._scopesRaw[scope])} }`)
 		}).join(';\n\n');;
 	};
 
@@ -121,11 +129,30 @@ class Bundler {
 	}
 
 	init(){
+
+		console.log(`Processing Files...`)
+
 		this.__scope('init', (exports, require, module) => {
 			require('./'+this.inputFile)
 		});
 
+		console.log(`Bundling Files...`)
+
 		return this.concatScopes();
+	}
+
+	saveFile(output){
+		console.log(`Saving File...`);
+
+		let bundle = this.getBundle(topFile, botFile)
+
+		if(this.beautify) bundle = beautify(bundle, { indent_size: 4 });
+
+		fs.writeFileSync(output, bundle, 'utf-8');
+
+		console.log(`Saved file ${output}!`);
+
+		process.exit(0)
 	}
 }
 

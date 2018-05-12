@@ -1,15 +1,7 @@
 #!/usr/bin/env node
 
 const program = require('commander');
-const beautify = require('js-beautify').js_beautify;
 const Bundler = require('./bundler');
-
-const fs = require('fs');
-const util = require('util');
-const path = require('path');
-
-const writeFileP = util.promisify(fs.writeFile);
-const readFileP = util.promisify(fs.readFile);
 
 program
 	.version('0.0.1')

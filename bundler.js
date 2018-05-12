@@ -135,7 +135,7 @@ const init = async (input, output) => {
 program
 	.version('0.0.1')
 	.usage('<file> [options]')
-	.option('-o, --output <file>', 'bundle file')
+	.option('-o, --output <file>', 'output file')
 
 program.parse(process.argv);
 

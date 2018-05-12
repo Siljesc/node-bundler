@@ -105,7 +105,7 @@ class Bundler {
 
 	concatScopes(){
 		return Object.keys(this._scopesRaw).map((scope) => {
-			return (`__scopes["${scope}"] = function(){ return ${Module.wrap(this._scopesRaw[scope])} }`)
+			return (`__scopes["${scope}"] = function(){ return ${generateScopeFile(scope, this._scopesRaw[scope])} }`)
 		}).join(';\n\n');;
 	};
 

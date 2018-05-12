@@ -2,13 +2,8 @@
 
 const path = require('path');
 const fs = require('fs');
-const util = require('util');
-const uid = require('uuid');
-const vm = require('vm');
 const Module = require('module');
 const beautify = require('js-beautify').js_beautify;
-
-let AppExport = {};
 
 const topFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'top.txt'), 'utf8');
 const botFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'bottom.txt'), 'utf8');
@@ -21,7 +16,9 @@ class Bundler {
 	constructor(options){
 		this._scopes = {};
 		this.inputFile = options.inputFile;
+		this.minify = options.minify;
 		this.beautify = options.beautify;
+		this.outputFile = options.outputFile || 'bundle.js';
 		this.debug = options.verbose ? (...args) => console.log(...args) : () => null;
 	}
 
@@ -60,7 +57,7 @@ class Bundler {
 		return !requires ? [] : file.match(REGEX_REQ_G).map((string) => string.match(REGEX_REQ)[1]);
 	}
 
-	processFile(filePath, init){
+	processFile(filePath){
 
 		if(this._scopes[filePath]) return;
 
@@ -117,16 +114,16 @@ class Bundler {
 		return this.concatScopes();
 	}
 
-	saveFile(output){
+	saveFile(){
 		console.log(`Saving File...`);
 
 		let bundle = this.getBundle(topFile, botFile)
 
 		if(this.beautify) bundle = beautify(bundle, { indent_size: 4 });
 
-		fs.writeFileSync(output, bundle, 'utf-8');
+		fs.writeFileSync(this.outputFile, bundle, 'utf-8');
 
-		console.log(`Saved file ${output}!`);
+		console.log(`Saved file ${this.outputFile}!`);
 
 		process.exit(0)
 	}

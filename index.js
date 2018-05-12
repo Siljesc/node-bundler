@@ -24,10 +24,11 @@ if (program.args.length === 0) program.help()
 
 const b = new Bundler({ 
     inputFile: program.args[0],
+    outputFile: program.output,
     verbose: program.verbose,
     beautify: program.beautify
 });
 
-b.saveFile(program.output);
+b.saveFile();
 
 process.exit(0)

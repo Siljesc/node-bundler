@@ -18,8 +18,6 @@ program
 
 program.parse(process.argv);
 
-console.log(program.ignore);
-
 if (program.args.length === 0) program.help()
 
 const b = new Bundler({ 

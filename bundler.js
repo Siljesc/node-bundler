@@ -19,6 +19,7 @@ class Bundler {
 		this.minify = options.minify;
 		this.beautify = options.beautify;
 		this.outputFile = options.outputFile || 'bundle.js';
+		this.ignoreFiles = options.ignoreFiles || [];
 		this.disableJSON = options.disableJSON || false;
 		this.debug = options.verbose ? (...args) => console.log(...args) : () => null;
 	}
@@ -58,7 +59,7 @@ class Bundler {
 		return !requires ? [] : file.match(REGEX_REQ_G).map((string) => string.match(REGEX_REQ)[1]);
 	}
 
-	processFile(filePath){
+	processFile(filePath, entry){
 
 		if(this._scopes[filePath]) return;
 		if(filePath.includes('.json') && this.disableJSON) return;
@@ -67,6 +68,20 @@ class Bundler {
 
 		const file = String(fs.readFileSync(filePath, 'utf-8'));
 		const fileRequires = Bundler.findRequires(file);
+
+		if(entry) {
+			const parsedPath = path.parse(filePath);
+
+			// Use absolute path in case of different paths between input and output
+			this.outputFile = path.resolve(process.cwd(), this.outputFile);
+
+			filePath = parsedPath.base;
+			process.chdir(parsedPath.dir);
+		}
+
+		console.log(this.ignoreFiles, filePath.replace(/\.\//, ''));
+
+		if(this.ignoreFiles.includes(filePath.replace(/\.\//, ''))) return;
 
 		if(!filePath.startsWith('./')) filePath = './'+filePath;
 
@@ -109,7 +124,7 @@ class Bundler {
 
 		console.log(`Processing Files...`)
 
-		this.processFile(this.inputFile);
+		this.processFile(this.inputFile, true);
 
 		console.log(`Bundling Files...`)
 

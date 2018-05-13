@@ -9,6 +9,7 @@ program
     .option('-o, --output <file>', 'output file')
     .option('-v, --verbose', 'enable verbose')
     .option('-b, --beautify', 'beautify output')
+    .option('-j, --ignoreJSON', 'ignore json files')
 
 program.parse(process.argv);
 
@@ -18,7 +19,8 @@ const b = new Bundler({
     inputFile: program.args[0],
     outputFile: program.output,
     verbose: program.verbose,
-    beautify: program.beautify
+    beautify: program.beautify,
+    disableJSON: program.ignoreJSON
 });
 
 b.saveFile();

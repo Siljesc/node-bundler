@@ -19,6 +19,7 @@ class Bundler {
 		this.minify = options.minify;
 		this.beautify = options.beautify;
 		this.outputFile = options.outputFile || 'bundle.js';
+		this.disableJSON = options.disableJSON || false;
 		this.debug = options.verbose ? (...args) => console.log(...args) : () => null;
 	}
 
@@ -60,6 +61,7 @@ class Bundler {
 	processFile(filePath){
 
 		if(this._scopes[filePath]) return;
+		if(filePath.includes('.json') && this.disableJSON) return;
 
 		this.debug(`Processing ${filePath}`);
 

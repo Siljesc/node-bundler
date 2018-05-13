@@ -1,20 +1,28 @@
 {
-  "name": "bundler",
-  "version": "1.0.0",
-  "description": "",
-  "main": "bundler.js",
+  "name": "bundler-node",
+  "version": "1.3.0",
+  "description": "Bundle Node inter-dependent files in a single file",
+  "main": "index.js",
   "dependencies": {
     "commander": "^2.15.1",
     "js-beautify": "^1.7.5",
     "node-zip": "^1.1.1"
   },
+  "homepage": "https://github.com/SunriseM/node-bundler#readme",
+  "bugs": { 
+		"url" : "https://github.com/SunriseM/node-bundler/issues"
+   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository" : { 
+	"type" : "git",
+	"url" : "https://github.com/SunriseM/node-bundler.git"
+  },
   "bin": {
     "bundle": "index.js"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "SunriseM",
+  "license": "MIT"
 }

@@ -79,8 +79,6 @@ class Bundler {
 			process.chdir(parsedPath.dir);
 		}
 
-		console.log(this.ignoreFiles, filePath.replace(/\.\//, ''));
-
 		if(this.ignoreFiles.includes(filePath.replace(/\.\//, ''))) return;
 
 		if(!filePath.startsWith('./')) filePath = './'+filePath;

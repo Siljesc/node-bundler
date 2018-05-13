@@ -62,6 +62,8 @@ class Bundler {
 	processFile(filePath, entry){
 
 		if(this._scopes[filePath]) return;
+		if(this.ignoreFiles.includes(filePath)) return;
+
 		if(filePath.includes('.json') && this.disableJSON) return;
 
 		this.debug(`Processing ${filePath}`);
@@ -75,11 +77,12 @@ class Bundler {
 			// Use absolute path in case of different paths between input and output
 			this.outputFile = path.resolve(process.cwd(), this.outputFile);
 
+			this.ignoreFiles = this.ignoreFiles.map((fpath) => '.'+fpath.replace(new RegExp(parsedPath.dir), ''));
+
 			filePath = parsedPath.base;
 			process.chdir(parsedPath.dir);
 		}
 
-		if(this.ignoreFiles.includes(filePath.replace(/\.\//, ''))) return;
 
 		if(!filePath.startsWith('./')) filePath = './'+filePath;
 

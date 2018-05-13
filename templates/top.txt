@@ -29,16 +29,14 @@ const __scopeRequire = function(mod, filePath) {
 
         if (__scopesCache[fixedPath]) return __scopesCache[fixedPath];
 
-        let requiredFile = __scope(fixedPath, __scopes[fixedPath]());
+        let requiredFile = __scopes[fixedPath] && __scope(fixedPath, __scopes[fixedPath]());
 
         if (!requiredFile) {
-			
 			try {
-				requireFile = require(filePath)
+				requireFile = require(fixedPath);
 			} catch(err){
 				throw err;
 			}
-			
 		}
 
         __scopesCache[fixedPath] = requiredFile;

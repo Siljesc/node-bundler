@@ -9,14 +9,19 @@ const zip = require('node-zip')();
 const topFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'top.txt'), 'utf8');
 const botFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'bottom.txt'), 'utf8');
 
-const REGEX_REQ_G = /require\(['|"](.*)['|"]\)/g;
-const REGEX_REQ = /require\(['|"](.*)['|"]\)/;
+const REGEX_REQ_G = /require\(['|"|`](.*)['|"|`]\)/g;
+const REGEX_REQ = /require\(['|"|`](.*)['|"|`]\)/;
+
+const REGEX_RFSYNC_G = /readFileSync\(['|"|`](.*)['|"|`]\)/g;
+const REGEX_RFSYNC = /readFileSync\(['|"|`](.*)['|"|`]\)/;
+
+const REGEX_RFASYNC_G = /readFileP\(['|"](.*)['|"]\)/g;
+const REGEX_RFASYNC = /readFileP\(['|"](.*)['|"]\)/;
 
 class Bundler {
 
 	constructor(options){
 		this._scopes = {};
-		this._assets = {};
 		this.inputFile = options.inputFile;
 		this.minify = options.minify;
 		this.beautify = options.beautify;
@@ -67,8 +72,7 @@ class Bundler {
 		if(this._scopes[filePath]) return;
 
 		if(this.ignoreFiles.includes(filePath)  || (filePath.includes('.json') && this.disableJSON)) {
-			if(!zip || this._assets[filePath]) return;
-			this._assets[filePath] = String(fs.readFileSync(filePath, 'utf-8'));
+			return;
 		}
 
 		this.debug(`Processing ${filePath}`);
@@ -147,22 +151,37 @@ class Bundler {
 		
 		if(this.zip){
 
-			let pjson = '';
-			
-			try {
-				pjson = fs.readFileSync('package.json', 'utf-8');
-			} catch(err){
+			const assets = {}
+			const scopes = this._scopes;
+
+			function readDir(folder){
+
+				let dir = [];
+
 				try {
-					pjson = fs.readFileSync('../package.json', 'utf-8');
+					dir = fs.readdirSync(folder);
 				} catch(err){
-					pjson = false;
+					if(!err.message.includes('not a directory, scandir')) throw err;
 				}
+				
+				dir.forEach((el) => {
+					el = folder+'/'+el;
+
+					if(el.endsWith('.log') || el.includes('testing') || el.includes('dist')) return;
+
+					if(!el.slice(2).includes('.')) return readDir(el);
+
+					if(Object.keys(scopes).includes(el)) return;
+					
+					assets[el] = fs.readFileSync(el, 'utf-8');
+				});
 			}
+			
+			readDir('.');
 
 			zip.file(path.parse(this.outputFile).base, bundle);
-			if(pjson) zip.file('package.json', pjson);
 
-			Object.entries(this._assets).forEach(([fpath, ftext]) =>  zip.file(fpath.replace(/\.\//, ''), ftext));
+			Object.entries(assets).forEach(([fpath, ftext]) =>  zip.file(fpath.replace(/\.\//, ''), ftext));
 
 			encoding = 'binary';
 			bundle = zip.generate({base64:false,compression:'DEFLATE'});

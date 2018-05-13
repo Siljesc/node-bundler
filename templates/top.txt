@@ -33,7 +33,7 @@ const __scopeRequire = function(mod, filePath) {
 
         if (!requiredFile) {
 			try {
-				requireFile = require(fixedPath);
+				requiredFile = require(fixedPath);
 			} catch(err){
 				throw err;
 			}

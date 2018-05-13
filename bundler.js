@@ -150,10 +150,10 @@ class Bundler {
 			let pjson = '';
 			
 			try {
-				pjson = JSON.stringify(fs.readFileSync('package.json', 'utf-8'));
+				pjson = fs.readFileSync('package.json', 'utf-8');
 			} catch(err){
 				try {
-					pjson = JSON.stringify(fs.readFileSync('../package.json', 'utf-8'));
+					pjson = fs.readFileSync('../package.json', 'utf-8');
 				} catch(err){
 					pjson = false;
 				}

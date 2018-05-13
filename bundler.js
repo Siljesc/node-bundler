@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const Module = require('module');
 const beautify = require('js-beautify').js_beautify;
+const zip = require('node-zip')();
 
 const topFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'top.txt'), 'utf8');
 const botFile =  fs.readFileSync(path.resolve(__dirname, 'templates', 'bottom.txt'), 'utf8');
@@ -15,6 +16,7 @@ class Bundler {
 
 	constructor(options){
 		this._scopes = {};
+		this._assets = {};
 		this.inputFile = options.inputFile;
 		this.minify = options.minify;
 		this.beautify = options.beautify;
@@ -22,6 +24,7 @@ class Bundler {
 		this.ignoreFiles = options.ignoreFiles || [];
 		this.disableJSON = options.disableJSON || false;
 		this.debug = options.verbose ? (...args) => console.log(...args) : () => null;
+		this.zip = options.zip || false;
 	}
 
 	static scopeFileJS(string, main){
@@ -62,7 +65,11 @@ class Bundler {
 	processFile(filePath, entry){
 
 		if(this._scopes[filePath]) return;
-		if(this.ignoreFiles.includes(filePath)) return;
+
+		if(this.ignoreFiles.includes(filePath)) {
+			if(!zip || this._assets[filePath]) return;
+			this._assets[filePath] = String(fs.readFileSync(filePath, 'utf-8'));
+		}
 
 		if(filePath.includes('.json') && this.disableJSON) return;
 
@@ -136,10 +143,36 @@ class Bundler {
 		console.log(`Saving File...`);
 
 		let bundle = this.getBundle(topFile, botFile)
+		let encoding = 'utf-8'
 
 		if(this.beautify) bundle = beautify(bundle, { indent_size: 4 });
+		
+		if(this.zip){
 
-		fs.writeFileSync(this.outputFile, bundle, 'utf-8');
+			let pjson = '';
+			
+			try {
+				pjson = JSON.stringify(fs.readFileSync('package.json', 'utf-8'));
+			} catch(err){
+				try {
+					pjson = JSON.stringify(fs.readFileSync('../package.json', 'utf-8'));
+				} catch(err){
+					pjson = false;
+				}
+			}
+
+			zip.file(path.parse(this.outputFile).base, bundle);
+			if(pjson) zip.file('package.json', pjson);
+
+			Object.entries(this._assets).forEach(([fpath, ftext]) =>  zip.file(fpath.replace(/\.\//, ''), ftext));
+
+			encoding = 'binary';
+			bundle = zip.generate({base64:false,compression:'DEFLATE'});
+
+			this.outputFile += '.zip';
+		}
+
+		fs.writeFileSync(this.outputFile, bundle, encoding);
 
 		console.log(`Saved file ${this.outputFile}!`);
 

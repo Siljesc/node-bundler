@@ -15,6 +15,7 @@ program
     .option('-b, --beautify', 'beautify output')
     .option('-i, --ignore <files> example: bundle index.js -i file1.js,lib/file2.js', 'ignore files', list)
     .option('-j, --ignoreJSON', 'ignore json files')
+    .option('-z, --zip', 'output zip file with bundle, required files and package.json')
 
 program.parse(process.argv);
 
@@ -26,7 +27,8 @@ const b = new Bundler({
     verbose: program.verbose,
     beautify: program.beautify,
     ignoreFiles: program.ignore,
-    disableJSON: program.ignoreJSON
+    disableJSON: program.ignoreJSON,
+    zip: program.zip
 });
 
 b.saveFile();

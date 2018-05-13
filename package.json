@@ -5,7 +5,8 @@
   "main": "bundler.js",
   "dependencies": {
     "commander": "^2.15.1",
-    "js-beautify": "^1.7.5"
+    "js-beautify": "^1.7.5",
+    "node-zip": "^1.1.1"
   },
   "devDependencies": {},
   "scripts": {

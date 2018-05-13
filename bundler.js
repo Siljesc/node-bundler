@@ -66,12 +66,10 @@ class Bundler {
 
 		if(this._scopes[filePath]) return;
 
-		if(this.ignoreFiles.includes(filePath)) {
+		if(this.ignoreFiles.includes(filePath)  || (filePath.includes('.json') && this.disableJSON)) {
 			if(!zip || this._assets[filePath]) return;
 			this._assets[filePath] = String(fs.readFileSync(filePath, 'utf-8'));
 		}
-
-		if(filePath.includes('.json') && this.disableJSON) return;
 
 		this.debug(`Processing ${filePath}`);
 

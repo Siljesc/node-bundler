@@ -113,7 +113,7 @@ class Bundler {
 			this.init() + 
 			'\n\n' + 
 			`__scope('init', (exports, require, module) => {
-				require('./${this.inputFile}')
+				require('./${path.parse(this.inputFile).base}')
 			});`+
 			after;
 	}

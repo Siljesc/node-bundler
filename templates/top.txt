@@ -61,7 +61,7 @@ const __scope = function(_path, fun) {
 
     const _require = __scopeRequire(_mod, _path);
 	
-    const result = fun.call(_module.exports, _module.exports, _require, _module, _dirname, _filename);
+    const result = fun.call(_module.exports, _module.exports, _require, _module, _filename, _dirname);
 
     return _module.exports;
 }

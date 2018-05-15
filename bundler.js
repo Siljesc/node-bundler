@@ -18,6 +18,8 @@ const REGEX_RFSYNC = /readFileSync\(['|"|`](.*)['|"|`]\)/;
 const REGEX_RFASYNC_G = /readFileP\(['|"](.*)['|"]\)/g;
 const REGEX_RFASYNC = /readFileP\(['|"](.*)['|"]\)/;
 
+var a = '1';
+
 class Bundler {
 
 	constructor(options){

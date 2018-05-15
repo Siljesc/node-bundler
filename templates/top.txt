@@ -11,7 +11,7 @@ const fixPath = function(filePath, requirePath) {
 
     let fixedPath = __path.join(__path.parse(filePath).dir, requirePath);
 
-    const length = __path.resolve(process.cwd()).length
+    const length = __path.resolve(__dirname).length
     fixedPath = (('./' + fixedPath.slice(length + 1)).replace(/\\/g, '/'));
 
     return fixedPath;
@@ -53,13 +53,15 @@ const __scope = function(_path, fun) {
     const _mod = module;
     const _module = new _mod.constructor();
 
-    _path = __path.resolve(_path);
-    const _filename = _path;
+    const _filename = __path.resolve(__dirname, _path);
     const _dirname = __path.dirname(_filename);
 
     _module.paths = module.paths;
 
-    const _require = __scopeRequire(_mod, _path);
+    // In some cases _module.exports is undefined
+    _module.exports = {};
+
+    const _require = __scopeRequire(_mod, _filename);
 	
     const result = fun.call(_module.exports, _module.exports, _require, _module, _filename, _dirname);
 
